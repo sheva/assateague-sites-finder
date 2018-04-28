@@ -27,10 +27,10 @@ public class SiteAvailabilityMailer {
     SiteAvailabilityMailer(Properties prop, Set<Site> availableSites) throws AddressException {
         this.availableSites = availableSites;
 
-        final String from = prop.getProperty("mail.from.username");
+        final String from = prop.getProperty("mail.from.user");
         this.fromAddress = new InternetAddress(from);
 
-        String[] to = prop.getProperty("mail.to.list").trim().split("\\s*;\\s*");
+        String[] to = prop.getProperty("mail.to").trim().split("\\s*;\\s*");
         this.toAddress = new InternetAddress[to.length];
         for (int i = 0; i < to.length; i++) {
             toAddress[i] = new InternetAddress(to[i]);
@@ -137,7 +137,8 @@ public class SiteAvailabilityMailer {
     public static void main(String... args) throws Exception {
         Set<Site> sites = new TreeSet<>();
         Site site1 = new Site("G5", "Oceanside Group Sites");
-        site1.setSiteLink("https//www.recreation.gov/camping/com.essheva.assateague-island-national-seashore-campground/r/campsiteDetails.do?siteId=202328&amp;contractCode=NRSO&amp;parkId=70989");
+        site1.setSiteLink("https//www.recreation.gov/camping/com.essheva.assateague-island-national-seashore-campground/r/campsiteDetails.do?" +
+                "siteId=202328&amp;contractCode=NRSO&amp;parkId=70989");
         site1.addAvailableDate(LocalDate.of(2018, 3, 9));
         site1.addAvailableDate(LocalDate.of(2018, 3, 10));
         site1.addAvailableDate(LocalDate.of(2018, 3, 11));
@@ -159,7 +160,8 @@ public class SiteAvailabilityMailer {
         sites.add(site2);
 
         Properties properties = new Properties();
-        properties.load(new FileReader(Paths.get("src/main/resources/app.properties").toFile()));
+        properties.load(new FileReader(Paths.get("src/main/resources/mail_default.properties").toFile()));
+        properties.load(new FileReader(Paths.get("src/main/resources/user.secret").toFile()));
 
         new SiteAvailabilityMailer(properties, sites).sendEmail();
     }

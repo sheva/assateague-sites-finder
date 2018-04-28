@@ -1,6 +1,7 @@
 package com.essheva.assateague;
 
 import javax.mail.MessagingException;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -19,11 +20,17 @@ import java.util.concurrent.TimeUnit;
  */
 public class AvailableSitesFinder {
 
+    private static final String resourceDirPath = "src/main/resources";
     private static Properties props;
+
     static {
         try {
             props = new Properties();
-            props.load(new FileReader(Paths.get("src/main/resources/app.properties").toFile()));
+            props.load(getReader(resourceDirPath + "/app.properties"));
+            props.load(getReader(resourceDirPath + "/user.secret"));
+            if (!props.contains("mail.smtp.host") || !props.contains("mail.imap.host") || !props.contains("mail.pop3.host")) {
+                props.load(getReader(resourceDirPath + "/mail_default.properties"));
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -31,13 +38,15 @@ public class AvailableSitesFinder {
 
     private Set<Site> availableSites = new ConcurrentSkipListSet<>();
     private final SearchParams params;
+    private final String driverPath;
 
     private AvailableSitesFinder(SearchParams params) {
         this.params = params;
+        this.driverPath = getOSDriverFolderPath();
     }
 
     private void retrieveAvailableDatesAndAdd(String loopName) {
-        SiteWebDriver driver = new SiteWebDriver(props);
+        SiteWebDriver driver = new SiteWebDriver(driverPath);
         Set<Site> sitesFound = driver.getAvailableSites(loopName, params);
         availableSites.addAll(sitesFound);
     }
@@ -66,6 +75,25 @@ public class AvailableSitesFinder {
         });
     }
 
+    private static FileReader getReader(String resource) throws FileNotFoundException {
+        return new FileReader(Paths.get(resource).toFile());
+    }
+
+    private String getOSDriverFolderPath() {
+        String os = System.getProperty("os.name").toLowerCase();
+        final String dirName;
+        if (os.contains("win")) {
+            dirName = "win32";
+        } else if (os.contains("mac")) {
+            dirName = "mac64";
+        } else if (os.contains("nux")) {
+            dirName = "linux64";
+        } else {
+            throw new UnsupportedOperationException(os + " is not supported");
+        }
+        return resourceDirPath + "/chomedriver/" + dirName + "/chromedriver.exe";
+    }
+
     public static void main(String... args) {
         final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
@@ -75,7 +103,7 @@ public class AvailableSitesFinder {
                 SearchParams params = new SearchParams(props);
                 AvailableSitesFinder checker = new AvailableSitesFinder(params);
 
-                new ArrayList<>(params.getLoopNames()).stream().parallel().forEach(loopName -> {
+                new ArrayList<>(params.getCampGroups()).stream().parallel().forEach(loopName -> {
                     try {
                         checker.retrieveAvailableDatesAndAdd(loopName);
                         scheduler.awaitTermination(5L, TimeUnit.SECONDS);

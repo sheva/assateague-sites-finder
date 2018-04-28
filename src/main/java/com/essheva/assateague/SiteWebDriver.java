@@ -32,15 +32,17 @@ public class SiteWebDriver {
     private final WebDriver webDriver;
     private final Wait<WebDriver> wait;
 
-    SiteWebDriver(Properties props) {
-        System.setProperty("webdriver.chrome.driver", get(props.getProperty("web.driver.path")).toFile().getAbsolutePath());
+    SiteWebDriver(final String driverPath) {
+        System.setProperty("webdriver.chrome.driver", get(driverPath).toFile().getAbsolutePath());
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("window-size=1500,1280");
 
         this.webDriver = new ChromeDriver(options);
 
-        webDriver.get("https://www.recreation.gov/camping/Assateague-Island-National-Seashore-Campground/r/campsiteCalendar.do?page=calendar&search=site&contractCode=NRSO&parkId=70989");
+        webDriver.get("https://www.recreation.gov/camping/Assateague-Island-National-Seashore-Campground/r/campsiteCalendar.do" +
+                "?page=calendar&search=site&contractCode=NRSO&parkId=70989");
+
         this.wait = new WebDriverWait(webDriver, 60);
     }
 
@@ -168,20 +170,13 @@ public class SiteWebDriver {
     private String getTdSelector(DayOfWeek day) {
         final String tdSelector;
         switch (day) {
-            case WED:
-                tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[3]"; break;
-            case THU:
-                tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[2]"; break;
-            case FRI:
-                tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[1]"; break;
-            case SAT:
-                tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']"; break;
-            case SUN:
-                tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']"; break;
-            case MON:
-                tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']/following-sibling::td[1]"; break;
-            case TUE:
-                tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']/following-sibling::td[2]"; break;
+            case WED: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[3]"; break;
+            case THU: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[2]"; break;
+            case FRI: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[1]"; break;
+            case SAT: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']"; break;
+            case SUN: tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']"; break;
+            case MON: tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']/following-sibling::td[1]"; break;
+            case TUE: tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']/following-sibling::td[2]"; break;
             default:
                 throw new AssertionError(day);
         }

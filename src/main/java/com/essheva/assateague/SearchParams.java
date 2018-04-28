@@ -8,14 +8,14 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 
 public class SearchParams {
 
-    private final Set<String> loopNames;
+    private final Set<String> campGroups;
     private final Set<DayOfWeek> daysOfWeek;
     private final LocalDate start;
     private final LocalDate stop;
     private int minLength = 1;
 
     SearchParams(Properties props) {
-        loopNames = new HashSet<>(Arrays.asList(props.getProperty("search.loop.names").trim().split("\\s*;\\s*")));
+        campGroups = new HashSet<>(Arrays.asList(props.getProperty("search.campgroup.names").trim().split("\\s*;\\s*")));
 
         daysOfWeek = new TreeSet<>();
         for (String day : props.getProperty("search.days.of.week").trim().split("\\s*;\\s*")) {
@@ -27,8 +27,8 @@ public class SearchParams {
         minLength = Integer.valueOf(props.getProperty("search.length.of.stay"));
     }
 
-    Set<String> getLoopNames() {
-        return loopNames;
+    Set<String> getCampGroups() {
+        return campGroups;
     }
 
     Set<DayOfWeek> getDaysOfWeek() {
@@ -50,7 +50,7 @@ public class SearchParams {
     @Override
     public String toString() {
         return "SearchParams{" +
-                "loopNames=" + loopNames +
+                "campGroups=" + campGroups +
                 ", daysOfWeek=" + daysOfWeek +
                 ", start=" + start +
                 ", stop=" + stop +
