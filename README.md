@@ -36,3 +36,14 @@ mail.from.username=%%FROM_EMAIL_ADDRESS%%
 mail.from.password=%%FROM_PASSWORD%%
 mail.to.list=%%TO_EMAIL_ADDRESSES%%
 ```
+### How to run
+
+After successfully configuring [app.properties](https://github.com/sheva/assateague-sites-finder/blob/master/src/main/resources/app.properties), you can now run **assateague-sites-finder**. 
+
+* Run using maven:
+```
+mvn compile exec:java
+```
+
+
+That's it. I hope you will find this app quite useful for planning vacation at Assateague Seashore, MD. ;)
