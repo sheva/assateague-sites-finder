@@ -1,6 +1,6 @@
 # Assateague Sites Finder
 Helper code to find available sites on Assateague National Seashore. 
-If you google this project than you are familiar with difficulty to find available camping spot at the summer. You should refer to [Assateague Island National Seashore campground, MD](https://www.recreation.gov/camping/assateague-island-national-seashore-campground/r/campgroundDetails.do?contractCode=NRSO&parkId=70989) quite often to find out free site. So I automated this process.
+If you google this project then you are familiar with difficulty to find available camping spot at the summer. You should refer to [Assateague Island National Seashore campground, MD](https://www.recreation.gov/camping/assateague-island-national-seashore-campground/r/campgroundDetails.do?contractCode=NRSO&parkId=70989) quite often to find out free site. So I automated this process.
 I trace available sites by desired criteria. If free spot found, email with sites availability info is sent to specified recipients. 
 
 ## Setting search criteria
@@ -27,10 +27,19 @@ search.start.date=2018-06-01
 ```
 search.stop.date=2018-09-01
 ```
+6. Determine whether to send notification by email or not when available sites has been found.
+```
+mail.send=true
+```
+7. Send email even if no available sites found.
+```
+mail.send.if.not.found=false
+```
+
 
 ### Mail configuration
 
-If you want to send email notifications (I am sure you want :) ) you should create **user.secret** file in [_**resource**_](https://github.com/sheva/assateague-sites-finder/blob/master/src/main/resources) directory. Please, set authentication credentials **mail.from.user** and **mail.from.password**. Also, please, mention recipients email addresses in **mail.to** property, separated by semicolon.
+If you want to send email notifications (I am sure you want :) ) you should create **user.secret** file in [_**resource**_](https://github.com/sheva/assateague-sites-finder/blob/master/src/main/resources) directory. Please, set authentication credentials **mail.from.user** and **mail.from.password**. Also, please, mention recipients email addresses in **mail.to** property, separated by semicolon. If you do not specify **mail.to** property then recipient will be **mail.from.user**.
 ```
 mail.from.user=
 mail.from.password=
