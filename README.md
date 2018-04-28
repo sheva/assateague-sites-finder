@@ -1,6 +1,6 @@
 # Assateague Sites Finder
 Helper code to find available sites on Assateague National Seashore. 
-If you find this project than you are familiar with difficulty to find available camping spot at the summer. You should refer to [ASSATEAGUE ISLAND NATIONAL SEASHORE CAMPGROUND, MD](https://www.recreation.gov/camping/assateague-island-national-seashore-campground/r/campgroundDetails.do?contractCode=NRSO&parkId=70989) quite often to find out free site. So I automated this process.
+If you google this project than you are familiar with difficulty to find available camping spot at the summer. You should refer to [ASSATEAGUE ISLAND NATIONAL SEASHORE CAMPGROUND, MD](https://www.recreation.gov/camping/assateague-island-national-seashore-campground/r/campgroundDetails.do?contractCode=NRSO&parkId=70989) quite often to find out free site. So I automated this process.
 I trace available sites by desired criteria. If free spot found, email with sites availability info is sent to specified recipients. 
 
 ## Setting search criteria
