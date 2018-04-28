@@ -1,6 +1,7 @@
 package com.essheva.assateague;
 
 import javax.mail.MessagingException;
+import javax.naming.ConfigurationException;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -28,7 +29,7 @@ public class AvailableSitesFinder {
             props = new Properties();
             props.load(getReader(resourceDirPath + "/app.properties"));
             props.load(getReader(resourceDirPath + "/user.secret"));
-            if (!props.contains("mail.smtp.host") || !props.contains("mail.imap.host") || !props.contains("mail.pop3.host")) {
+            if (!props.containsKey("mail.smtp.host") || !props.containsKey("mail.imap.host") || !props.containsKey("mail.pop3.host")) {
                 props.load(getReader(resourceDirPath + "/mail_default.properties"));
             }
         } catch (IOException e) {
@@ -51,17 +52,11 @@ public class AvailableSitesFinder {
         availableSites.addAll(sitesFound);
     }
 
-    private void sendEmailNotification() throws MessagingException {
-
-        printSiteInfo();
-
-        if (!availableSites.isEmpty()) {
-            new SiteAvailabilityMailer(props, availableSites).sendEmail();
-        } else {
-            synchronized (System.out) {
-                System.out.println("Nothing found.");
-            }
+    private void sendEmailNotification() throws MessagingException, ConfigurationException {
+        if (availableSites.isEmpty() && "false".equalsIgnoreCase(props.getProperty("mail.send.if.not.found"))) {
+            System.out.println("Nothing to send. No available sites found.");
         }
+        new SiteAvailabilityMailer(props, availableSites).sendEmail();
     }
 
     private void printSiteInfo() {
@@ -69,10 +64,11 @@ public class AvailableSitesFinder {
             StringBuilder str = new StringBuilder(String.format(
                     "Site #%s in facility area '%s' available on dates: ", site.getSiteName(), site.getLoopName()));
             site.getAvailableDates().forEach(d -> str.append(d).append("; "));
-            synchronized (System.out) {
-                System.out.println(str);
-            }
+            System.out.println(str);
         });
+        if (availableSites.isEmpty()) {
+            System.out.println("Nothing found.");
+        }
     }
 
     private static FileReader getReader(String resource) throws FileNotFoundException {
@@ -103,9 +99,9 @@ public class AvailableSitesFinder {
                 SearchParams params = new SearchParams(props);
                 AvailableSitesFinder checker = new AvailableSitesFinder(params);
 
-                new ArrayList<>(params.getCampGroups()).stream().parallel().forEach(loopName -> {
+                new ArrayList<>(params.getCampGroups()).stream().parallel().forEach(group -> {
                     try {
-                        checker.retrieveAvailableDatesAndAdd(loopName);
+                        checker.retrieveAvailableDatesAndAdd(group);
                         scheduler.awaitTermination(5L, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
                         synchronized (System.err) {
@@ -113,7 +109,13 @@ public class AvailableSitesFinder {
                         }
                     }
                 });
-                checker.sendEmailNotification();
+
+                checker.printSiteInfo();
+
+                if ("true".equals(props.getProperty("mail.send"))) {
+                    System.out.println("Send email notification action requested.");
+                    checker.sendEmailNotification();
+                }
 
                 System.out.println("Scheduler task was finished on " + LocalDateTime.now());
             }

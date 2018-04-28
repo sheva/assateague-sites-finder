@@ -4,6 +4,7 @@ import javax.mail.*;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.naming.ConfigurationException;
 import java.io.FileReader;
 import java.nio.file.Paths;
 import java.time.LocalDate;
@@ -24,21 +25,34 @@ public class SiteAvailabilityMailer {
     private Address fromAddress;
     private Session session;
 
-    SiteAvailabilityMailer(Properties prop, Set<Site> availableSites) throws AddressException {
+    SiteAvailabilityMailer(Properties props, Set<Site> availableSites) throws AddressException, ConfigurationException {
+        if (!props.containsKey("mail.from.user") || !props.containsKey("mail.from.password")) {
+            throw new ConfigurationException("You should configure authentication mail server credentials. " +
+                    "Please, set 'mail.from.user' and 'mail.from.password'");
+        }
         this.availableSites = availableSites;
 
-        final String from = prop.getProperty("mail.from.user");
+        final String from = props.getProperty("mail.from.user");
         this.fromAddress = new InternetAddress(from);
 
-        String[] to = prop.getProperty("mail.to").trim().split("\\s*;\\s*");
-        this.toAddress = new InternetAddress[to.length];
-        for (int i = 0; i < to.length; i++) {
-            toAddress[i] = new InternetAddress(to[i]);
+        String toList = props.getProperty("mail.to");
+        if (toList != null) {
+            String[] to = props.getProperty("mail.to").trim().split("\\s*;\\s*");
+            this.toAddress = new InternetAddress[to.length];
+            for (int i = 0; i < to.length; i++) {
+                toAddress[i] = new InternetAddress(to[i]);
+            }
+        } else {
+            synchronized (System.out) {
+                System.out.println("Using 'mail.from.user' as mail recipient address.");
+            }
+            this.toAddress = new InternetAddress[1];
+            toAddress[0] = new InternetAddress(from);
         }
 
-        this.session = Session.getDefaultInstance(prop, new Authenticator() {
+        this.session = Session.getDefaultInstance(props, new Authenticator() {
             public PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(from, prop.getProperty("mail.from.password"));
+                return new PasswordAuthentication(from, props.getProperty("mail.from.password"));
             }
         });
     }
