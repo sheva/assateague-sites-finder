@@ -1,7 +1,6 @@
 package com.essheva.assateague;
 
 import javax.mail.MessagingException;
-import javax.naming.ConfigurationException;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -43,7 +42,7 @@ public class AvailableSitesFinder {
 
     private AvailableSitesFinder(SearchParams params) {
         this.params = params;
-        this.driverPath = getOSDriverFolderPath();
+        this.driverPath = getWebDriverFolderPathByOS();
     }
 
     private void retrieveAvailableDatesAndAdd(String loopName) {
@@ -52,16 +51,17 @@ public class AvailableSitesFinder {
         availableSites.addAll(sitesFound);
     }
 
-    private void sendEmailNotification() throws MessagingException, ConfigurationException {
+    private void sendEmailNotification() throws MessagingException {
         if (availableSites.isEmpty() && "false".equalsIgnoreCase(props.getProperty("mail.send.if.not.found"))) {
             System.out.println("Nothing to send. No available sites found.");
+            return;
         }
         new SiteAvailabilityMailer(props, availableSites).sendEmail();
     }
 
     private void printSiteInfo() {
         availableSites.forEach((site) -> {
-            StringBuilder str = new StringBuilder(String.format(
+            final StringBuilder str = new StringBuilder(String.format(
                     "Site #%s in facility area '%s' available on dates: ", site.getSiteName(), site.getLoopName()));
             site.getAvailableDates().forEach(d -> str.append(d).append("; "));
             System.out.println(str);
@@ -75,7 +75,7 @@ public class AvailableSitesFinder {
         return new FileReader(Paths.get(resource).toFile());
     }
 
-    private String getOSDriverFolderPath() {
+    private String getWebDriverFolderPathByOS() {
         String os = System.getProperty("os.name").toLowerCase();
         final String dirName;
         if (os.contains("win")) {
@@ -99,7 +99,7 @@ public class AvailableSitesFinder {
                 SearchParams params = new SearchParams(props);
                 AvailableSitesFinder checker = new AvailableSitesFinder(params);
 
-                new ArrayList<>(params.getCampGroups()).stream().parallel().forEach(group -> {
+                new ArrayList<>(params.getCampGroups()).parallelStream().forEach(group -> {
                     try {
                         checker.retrieveAvailableDatesAndAdd(group);
                         scheduler.awaitTermination(5L, TimeUnit.SECONDS);

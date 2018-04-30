@@ -83,6 +83,8 @@ public class Site implements Cloneable, Comparable<Site> {
         return "Site{" +
                 "siteName='" + siteName + '\'' +
                 ", loopName='" + loopName + '\'' +
+                ", siteLink='" + siteLink + '\'' +
+                ", availableDates=" + availableDates +
                 '}';
     }
 }

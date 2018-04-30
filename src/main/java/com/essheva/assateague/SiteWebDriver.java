@@ -12,11 +12,10 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.essheva.assateague.DayOfWeek.SAT;
-import static com.essheva.assateague.DayOfWeek.SUN;
 import static java.nio.file.Paths.get;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static org.openqa.selenium.By.*;
@@ -38,12 +37,12 @@ public class SiteWebDriver {
         ChromeOptions options = new ChromeOptions();
         options.addArguments("window-size=1500,1280");
 
-        this.webDriver = new ChromeDriver(options);
+        webDriver = new ChromeDriver(options);
 
         webDriver.get("https://www.recreation.gov/camping/Assateague-Island-National-Seashore-Campground/r/campsiteCalendar.do" +
                 "?page=calendar&search=site&contractCode=NRSO&parkId=70989");
 
-        this.wait = new WebDriverWait(webDriver, 60);
+        wait = new WebDriverWait(webDriver, 60);
     }
 
     Set<Site> getAvailableSites(String loopName, SearchParams params) {
@@ -92,27 +91,28 @@ public class SiteWebDriver {
     }
 
     private Map<Integer, Set<LocalDate>> getAvailableDateCandidates(SearchParams params, WebElement row) {
-        Map<Integer, Set<LocalDate>> candidates = new HashMap<>();
-        for (DayOfWeek day : params.getDaysOfWeek()) {
+        Map<Integer, Set<LocalDate>> candidates = new TreeMap<>();
 
-            int group = 0;
-            final String tdSelector = getTdSelector(day);
-            List<WebElement> elements = row.findElements(xpath(tdSelector));
-            for (WebElement e : elements) {
+        params.getDaysOfWeek().forEach(day ->  {
 
-                LocalDate date = getAvailableDateFromElement(e);
-                LocalDate start = params.getStart();
+            final AtomicInteger group = new AtomicInteger(0);
 
-                if (date.isAfter(start) || date.isEqual(start)) {
-                    if (candidates.containsKey(group)) {
-                        candidates.get(group).add(date);
-                    } else {
-                        candidates.put(group, new TreeSet<LocalDate>(){{add(date);}});
-                    }
-                }
-                group++;
-            }
-        }
+            row.findElements(xpath(DayOfWeek.getTdSelector(day))).stream().
+                    filter(e -> e.getAttribute("class").contains(" a")).
+                    filter(e -> {
+                        LocalDate date = getAvailableDateFromElement(e);
+                        LocalDate start = params.getStart();
+                        return date.isAfter(start) || date.isEqual(start);}).
+                    forEach(e -> {
+                            LocalDate date = getAvailableDateFromElement(e);
+                            int groupId = group.getAndAdd(1);
+                            if (candidates.containsKey(groupId)) {
+                                candidates.get(groupId).add(date);
+                            } else {
+                                candidates.put(groupId, new TreeSet<LocalDate>() {{ add(date); }});
+                            }
+                    });
+        });
         return candidates;
     }
 
@@ -153,8 +153,8 @@ public class SiteWebDriver {
      * @return e.g. "Mar 2018"
      */
     private String getEndDateCondition(LocalDate end) {
-        String monthInLower = end.getMonth().toString().substring(0, 3).toLowerCase();
-        String month = monthInLower.substring(0, 1).toUpperCase() + monthInLower.substring(1);
+        String monthInLowerCase = end.getMonth().toString().substring(0, 3).toLowerCase();
+        String month = monthInLowerCase.substring(0, 1).toUpperCase() + monthInLowerCase.substring(1);
         return month + " " + end.getYear();
     }
 
@@ -165,22 +165,6 @@ public class SiteWebDriver {
             return LocalDate.parse(matcher.group(1), ofPattern("M/d/yyyy"));
         }
         throw new IllegalArgumentException(href);
-    }
-
-    private String getTdSelector(DayOfWeek day) {
-        final String tdSelector;
-        switch (day) {
-            case WED: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[3]"; break;
-            case THU: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[2]"; break;
-            case FRI: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']/preceding-sibling::td[1]"; break;
-            case SAT: tdSelector = "td[@class='status a " + SAT.getCSSClass() + "']"; break;
-            case SUN: tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']"; break;
-            case MON: tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']/following-sibling::td[1]"; break;
-            case TUE: tdSelector = "td[@class='status a " + SUN.getCSSClass() + "']/following-sibling::td[2]"; break;
-            default:
-                throw new AssertionError(day);
-        }
-        return tdSelector;
     }
 
     private Site getByNameOrNew(Set<Site> availableSites, String siteName, String loopName) {

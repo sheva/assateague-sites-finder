@@ -4,15 +4,11 @@ import javax.mail.*;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
-import javax.naming.ConfigurationException;
 import java.io.FileReader;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.Iterator;
-import java.util.Properties;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  *
@@ -20,37 +16,42 @@ import java.util.TreeSet;
  */
 public class SiteAvailabilityMailer {
 
+    private static final String PROPERTY_VALUES_SEPARATOR = ";";
+
     private Set<Site> availableSites;
     private Address[] toAddress;
     private Address fromAddress;
     private Session session;
 
-    SiteAvailabilityMailer(Properties props, Set<Site> availableSites) throws AddressException, ConfigurationException {
+    SiteAvailabilityMailer(Properties props, Set<Site> availableSites) throws AddressException {
         if (!props.containsKey("mail.from.user") || !props.containsKey("mail.from.password")) {
-            throw new ConfigurationException("You should configure authentication mail server credentials. " +
+            throw new IllegalArgumentException("You should configure authentication mail server credentials. " +
                     "Please, set 'mail.from.user' and 'mail.from.password'");
         }
+
         this.availableSites = availableSites;
 
         final String from = props.getProperty("mail.from.user");
-        this.fromAddress = new InternetAddress(from);
+        fromAddress = new InternetAddress(from);
 
-        String toList = props.getProperty("mail.to");
+        final String toList = props.getProperty("mail.to");
         if (toList != null) {
-            String[] to = props.getProperty("mail.to").trim().split("\\s*;\\s*");
-            this.toAddress = new InternetAddress[to.length];
-            for (int i = 0; i < to.length; i++) {
-                toAddress[i] = new InternetAddress(to[i]);
-            }
+            toAddress = Arrays.stream(toList.split("\\s*" + PROPERTY_VALUES_SEPARATOR + "\\s*")).
+                    map(address -> {
+                        try {
+                            return new InternetAddress(address);
+                        } catch (AddressException e) {
+                           throw new RuntimeException(e);
+                        }
+                    }).toArray(Address[]::new);
         } else {
             synchronized (System.out) {
                 System.out.println("Using 'mail.from.user' as mail recipient address.");
             }
-            this.toAddress = new InternetAddress[1];
-            toAddress[0] = new InternetAddress(from);
+            toAddress = new InternetAddress[]{ new InternetAddress(from)};
         }
 
-        this.session = Session.getDefaultInstance(props, new Authenticator() {
+        session = Session.getDefaultInstance(props, new Authenticator() {
             public PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(from, props.getProperty("mail.from.password"));
             }
