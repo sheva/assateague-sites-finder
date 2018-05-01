@@ -30,38 +30,40 @@ public class SiteWebDriver implements AutoCloseable {
 
     private final WebDriver webDriver;
     private final Wait<WebDriver> wait;
+    private final Configuration conf;
 
-    SiteWebDriver(final String driverPath) {
-        System.setProperty("webdriver.chrome.driver", get(driverPath).toFile().getAbsolutePath());
+    SiteWebDriver(Configuration conf) {
+        this.conf = conf;
+
+        System.setProperty("webdriver.chrome.driver", get(conf.getDriverPath()).toFile().getAbsolutePath());
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("window-size=1500,1280");
 
         webDriver = new ChromeDriver(options);
-
         webDriver.get("https://www.recreation.gov/camping/Assateague-Island-National-Seashore-Campground/r/campsiteCalendar.do" +
                 "?page=calendar&search=site&contractCode=NRSO&parkId=70989");
 
         wait = new WebDriverWait(webDriver, 60);
     }
 
-    Set<Site> getAvailableSites(String loopName, Configuration conf) {
+    Set<Site> getAvailableSites(String loopName) {
         loopFilterSubmit(loopName);
-        return processSearchResults(loopName, conf);
+        return processSearchResults(loopName);
     }
 
-    private Set<Site> processSearchResults(String loopName, Configuration conf) {
+    private Set<Site> processSearchResults(String loopName) {
         webDriver.findElement(id("campCalendar")).click();
 
         String stopCondition = getSearchStopCondition(conf.getSearchStop());
         final Set<Site> result = new TreeSet<>();
         while (!stopCondition.equals(webDriver.findElement(id("calendar")).findElement(cssSelector("td[class='weeknav month']>span")).getText())) {
             WebElement resultTable = webDriver.findElement(id("calendar"));
-            resultTable.findElements(cssSelector("tbody>tr:not([class*='separator'])")).forEach(row ->
+            resultTable.findElements(cssSelector("tbody>tr:not([class*='separator'])")).forEach(rowE ->
             {
-                final WebElement siteE = row.findElement(cssSelector("div[class='siteListLabel']")).findElement(tagName("a"));
+                final WebElement siteE = rowE.findElement(cssSelector("div[class='siteListLabel']")).findElement(tagName("a"));
 
-                getAvailableDateCandidates(conf, row).values().stream().
+                getAvailableDateCandidates(rowE).values().stream().
                         map(d -> getConsequentDatesRange(d, conf.getMinLength())).
                         filter(dates -> !dates.isEmpty()).
                         forEach((dates) -> {
@@ -87,9 +89,9 @@ public class SiteWebDriver implements AutoCloseable {
 
         wait.until(elementToBeClickable(id("filter")));
 
-        WebElement filterButton = webDriver.findElement(id("filter"));
+        WebElement buttonE = webDriver.findElement(id("filter"));
         Actions actions = new Actions(webDriver);
-        actions.moveToElement(filterButton).click().perform();
+        actions.moveToElement(buttonE).click().perform();
     }
 
     @Override
@@ -97,18 +99,17 @@ public class SiteWebDriver implements AutoCloseable {
         webDriver.quit();
     }
 
-    private Map<Integer, Set<LocalDate>> getAvailableDateCandidates(Configuration params, WebElement row) {
-        Map<Integer, Set<LocalDate>> candidates = new TreeMap<>();
+    private Map<Integer, Set<LocalDate>> getAvailableDateCandidates(WebElement row) {
+        final Map<Integer, Set<LocalDate>> candidates = new TreeMap<>();
 
-        params.getDaysOfWeek().forEach(day ->  {
-
+        conf.getDaysOfWeek().forEach(day ->  {
             final AtomicInteger group = new AtomicInteger(0);
 
             row.findElements(xpath(DayOfWeek.getTdSelector(day))).stream().
                     filter(e -> e.getAttribute("class").contains(" a")).
                     filter(e -> {
                         LocalDate date = getAvailableDateFromElement(e);
-                        LocalDate start = params.getSearchStart();
+                        LocalDate start = conf.getSearchStart();
                         return date.isAfter(start) || date.isEqual(start);}).
                     forEach(e -> {
                             LocalDate date = getAvailableDateFromElement(e);
@@ -178,18 +179,5 @@ public class SiteWebDriver implements AutoCloseable {
     private Site getByNameOrNew(Set<Site> availableSites, String siteName, String loopName) {
         return availableSites.parallelStream().filter(s ->
                 s.getSiteName().equals(siteName)).findFirst().orElse(new Site(siteName, loopName));
-    }
-
-    public static void main(String[] args) {
-        Set<LocalDate> setInput = new TreeSet<>();
-        setInput.add(LocalDate.of(2018, 3, 1));
-        setInput.add(LocalDate.of(2018, 3, 4));
-        setInput.add(LocalDate.of(2018, 3, 5));
-        setInput.add(LocalDate.of(2018, 3, 6));
-        setInput.add(LocalDate.of(2018, 3, 8));
-        setInput.add(LocalDate.of(2018, 3, 9));
-        setInput.add(LocalDate.of(2018, 3, 11));
-        Set<LocalDate> filterd = getConsequentDatesRange(setInput, 2);
-        System.out.println(filterd);
     }
 }

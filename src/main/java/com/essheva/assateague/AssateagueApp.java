@@ -1,13 +1,9 @@
 package com.essheva.assateague;
 
 import javax.mail.MessagingException;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.Executors;
@@ -20,47 +16,30 @@ import java.util.concurrent.TimeUnit;
  */
 public class AssateagueApp {
 
-    private static final String resourceDirPath = "src/main/resources";
-    private static Properties appConfig;
-    private static Properties mailConfig;
-
+    private static Configuration conf;
     static {
         try {
-            appConfig = new Properties();
-            appConfig.load(getReader(resourceDirPath + "/app.properties"));
-
-            mailConfig = new Properties();
-            mailConfig.load(getReader(resourceDirPath + "/user.secret"));
-            if (!mailConfig.containsKey("mail.smtp.host") || !mailConfig.containsKey("mail.imap.host") || !mailConfig.containsKey("mail.pop3.host")) {
-                mailConfig.load(getReader(resourceDirPath + "/mail_default.properties"));
-            }
+            conf = Configuration.getInstance();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private Set<Site> availableSites = new ConcurrentSkipListSet<>();
-    private final Configuration configuration;
-    private final String driverPath;
-
-    private AssateagueApp(Properties props) {
-        this.configuration = new Configuration(props);
-        this.driverPath = getWebDriverFolderPathByOS();
-    }
 
     private void retrieveAvailableDatesAndAdd(String loopName) {
-        try (final SiteWebDriver driver = new SiteWebDriver(driverPath)){
-            Set<Site> sitesFound = driver.getAvailableSites(loopName, configuration);
+        try (final SiteWebDriver driver = new SiteWebDriver(conf)){
+            Set<Site> sitesFound = driver.getAvailableSites(loopName);
             availableSites.addAll(sitesFound);
         }
     }
 
     private void sendEmailNotification() throws MessagingException {
-        if (availableSites.isEmpty() && configuration.isSendMailIfNotFound()) {
+        if (availableSites.isEmpty() && !conf.isSendMailIfNotFound()) {
             System.out.println("Nothing to send. No available sites found.");
             return;
         }
-        new SiteAvailabilityMailer(mailConfig, availableSites).sendEmail();
+        new SiteAvailabilityMailer(conf.getMailProps(), availableSites).sendEmail();
     }
 
     private void printSiteInfo() {
@@ -75,34 +54,15 @@ public class AssateagueApp {
         }
     }
 
-    private static FileReader getReader(String resource) throws FileNotFoundException {
-        return new FileReader(Paths.get(resource).toFile());
-    }
-
-    private String getWebDriverFolderPathByOS() {
-        String os = System.getProperty("os.name").toLowerCase();
-        final String dirName;
-        if (os.contains("win")) {
-            dirName = "win32";
-        } else if (os.contains("mac")) {
-            dirName = "mac64";
-        } else if (os.contains("nux")) {
-            dirName = "linux64";
-        } else {
-            throw new UnsupportedOperationException(os + " is not supported");
-        }
-        return resourceDirPath + "/chomedriver/" + dirName + "/chromedriver.exe";
-    }
-
     public static void main(String... args) {
         final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 System.out.println("Launch of scheduler done on " + LocalDateTime.now());
 
-                AssateagueApp checker = new AssateagueApp(appConfig);
+                final AssateagueApp checker = new AssateagueApp();
 
-                new ArrayList<>(checker.configuration.getCampGroups()).parallelStream().forEach(group -> {
+                new ArrayList<>(conf.getCampGroups()).parallelStream().forEach(group -> {
                     try {
                         checker.retrieveAvailableDatesAndAdd(group);
                         scheduler.awaitTermination(5L, TimeUnit.SECONDS);
@@ -115,7 +75,7 @@ public class AssateagueApp {
 
                 checker.printSiteInfo();
 
-                if (checker.configuration.isSendMail()) {
+                if (conf.isSendMail()) {
                     System.out.println("Send email notification action requested.");
                     checker.sendEmailNotification();
                 }

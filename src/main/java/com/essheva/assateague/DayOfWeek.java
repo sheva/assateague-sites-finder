@@ -1,6 +1,7 @@
 package com.essheva.assateague;
 
 /**
+ * Correspondence of day to css class of <TD> element.
  *
  * Created by Sheva on 3/12/2018.
  */
