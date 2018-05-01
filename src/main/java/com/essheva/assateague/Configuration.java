@@ -9,17 +9,19 @@ import java.util.stream.Collectors;
 import static java.time.format.DateTimeFormatter.ofPattern;
 
 
-public class SearchParams {
+public class Configuration {
     private static final String DATE_FORMAT = "yyyy-MM-dd";
-    private static final String PROPERTY_VALUES_SEPARATOR = ";";
+    private static final char PROPERTY_VALUES_SEPARATOR = ';';
 
     private final Set<String> campGroups;
     private final Set<DayOfWeek> daysOfWeek;
-    private final LocalDate start;
-    private final LocalDate stop;
+    private final LocalDate searchStart;
+    private final LocalDate searchStop;
     private int minLength;
+    private boolean sendMail;
+    private boolean sendMailIfNotFound;
 
-    SearchParams(Properties props) {
+    Configuration(Properties props) {
         campGroups = Arrays.stream(spiltValues(getValue(props, "search.campgroup.names"))).
                 distinct().
                 collect(Collectors.toSet());
@@ -30,9 +32,12 @@ public class SearchParams {
                 .map(DayOfWeek::valueOf)
                 .collect(Collectors.toSet());
 
-        start = LocalDate.parse(getValue(props,"search.start.date"), ofPattern(DATE_FORMAT));
-        stop = LocalDate.parse(getValue(props,"search.stop.date"), ofPattern(DATE_FORMAT));
+        searchStart = LocalDate.parse(getValue(props,"search.start.date"), ofPattern(DATE_FORMAT));
+        searchStop = LocalDate.parse(getValue(props,"search.stop.date"), ofPattern(DATE_FORMAT));
         minLength = Integer.valueOf(getValue(props,"search.length.of.stay"));
+
+        sendMail = Boolean.valueOf(props.getProperty("mail.send"));
+        sendMailIfNotFound = Boolean.valueOf(props.getProperty("mail.send.if.not.found"));
     }
 
     Set<String> getCampGroups() {
@@ -43,26 +48,36 @@ public class SearchParams {
         return daysOfWeek;
     }
 
-    LocalDate getStart() {
-        return start;
+    LocalDate getSearchStart() {
+        return searchStart;
     }
 
-    LocalDate getStop() {
-        return stop;
+    LocalDate getSearchStop() {
+        return searchStop;
     }
 
     int getMinLength() {
         return minLength;
     }
 
+    public boolean isSendMail() {
+        return sendMail;
+    }
+
+    public boolean isSendMailIfNotFound() {
+        return sendMailIfNotFound;
+    }
+
     @Override
     public String toString() {
-        return "SearchParams{" +
+        return "Configuration{" +
                 "campGroups=" + campGroups +
                 ", daysOfWeek=" + daysOfWeek +
-                ", start=" + start +
-                ", stop=" + stop +
+                ", searchStart=" + searchStart +
+                ", searchStop=" + searchStop +
                 ", minLength=" + minLength +
+                ", sendMail=" + sendMail +
+                ", sendMailIfNotFound=" + sendMailIfNotFound +
                 '}';
     }
 

@@ -16,7 +16,7 @@ import java.util.*;
  */
 public class SiteAvailabilityMailer {
 
-    private static final String PROPERTY_VALUES_SEPARATOR = ";";
+    private static final char PROPERTY_VALUES_SEPARATOR = ';';
 
     private Set<Site> availableSites;
     private Address[] toAddress;

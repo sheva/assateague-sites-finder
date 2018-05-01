@@ -24,7 +24,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.6.0</version>
                 <configuration>
-                    <mainClass>com.essheva.assateague.AvailableSitesFinder</mainClass>
+                    <mainClass>com.essheva.assateague.AssateagueApp</mainClass>
                 </configuration>
             </plugin>
         </plugins>

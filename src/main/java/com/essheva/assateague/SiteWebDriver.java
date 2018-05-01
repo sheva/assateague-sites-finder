@@ -26,7 +26,7 @@ import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElem
  *
  * Created by Sheva on 3/12/2018.
  */
-public class SiteWebDriver {
+public class SiteWebDriver implements AutoCloseable {
 
     private final WebDriver webDriver;
     private final Wait<WebDriver> wait;
@@ -45,52 +45,59 @@ public class SiteWebDriver {
         wait = new WebDriverWait(webDriver, 60);
     }
 
-    Set<Site> getAvailableSites(String loopName, SearchParams params) {
-        try {
-            final Set<Site> result = new TreeSet<>();
-            Select loop = new Select(webDriver.findElement(id("loop")));
-            loop.selectByVisibleText(loopName);
-
-            wait.until(elementToBeClickable(id("filter")));
-
-            WebElement filterButton = webDriver.findElement(id("filter"));
-            Actions actions = new Actions(webDriver);
-            actions.moveToElement(filterButton).click().perform();
-
-            webDriver.findElement(id("campCalendar")).click();
-
-            String stopCondition = getEndDateCondition(params.getStop());
-            while (!stopCondition.equals(webDriver.findElement(id("calendar")).findElement(cssSelector("td[class='weeknav month']>span")).getText())) {
-                WebElement table = webDriver.findElement(id("calendar"));
-                table.findElements(cssSelector("tbody>tr:not([class*='separator'])")).forEach(row ->
-                {
-                    WebElement siteElem = row.findElement(cssSelector("div[class='siteListLabel']")).findElement(tagName("a"));
-
-                    final Site site = getByNameOrNew(result, siteElem.getText(), loopName);
-                    site.setSiteLink(siteElem.getAttribute("href"));
-
-                    Map<Integer, Set<LocalDate>> candidates = getAvailableDateCandidates(params, row);
-                    candidates.values().forEach(d -> site.addAvailableDates(getConsequentDatesRange(d, params.getMinLength())));
-
-                    if (!site.getAvailableDates().isEmpty()) {
-                        result.add(site);
-                    }
-                });
-
-                WebElement nextWeek = webDriver.findElement(id("nextWeek"));
-                new Actions(webDriver).moveToElement(nextWeek).click().perform();
-
-                wait.until(visibilityOfElementLocated(id("calendar")));
-            }
-
-            return result;
-        }
-        finally {
-            webDriver.quit();
-        }
+    Set<Site> getAvailableSites(String loopName, Configuration conf) {
+        loopFilterSubmit(loopName);
+        return processSearchResults(loopName, conf);
     }
 
-    private Map<Integer, Set<LocalDate>> getAvailableDateCandidates(SearchParams params, WebElement row) {
+    private Set<Site> processSearchResults(String loopName, Configuration conf) {
+        webDriver.findElement(id("campCalendar")).click();
+
+        String stopCondition = getSearchStopCondition(conf.getSearchStop());
+        final Set<Site> result = new TreeSet<>();
+        while (!stopCondition.equals(webDriver.findElement(id("calendar")).findElement(cssSelector("td[class='weeknav month']>span")).getText())) {
+            WebElement resultTable = webDriver.findElement(id("calendar"));
+            resultTable.findElements(cssSelector("tbody>tr:not([class*='separator'])")).forEach(row ->
+            {
+                final WebElement siteE = row.findElement(cssSelector("div[class='siteListLabel']")).findElement(tagName("a"));
+
+                getAvailableDateCandidates(conf, row).values().stream().
+                        map(d -> getConsequentDatesRange(d, conf.getMinLength())).
+                        filter(dates -> !dates.isEmpty()).
+                        forEach((dates) -> {
+                                final Site site = getByNameOrNew(result, siteE.getText(), loopName);
+                                site.setSiteLink(siteE.getAttribute("href"));
+                                site.addAvailableDates(dates);
+                                result.add(site);
+                        });
+            });
+
+            WebElement nextWeekE = webDriver.findElement(id("nextWeek"));
+            new Actions(webDriver).moveToElement(nextWeekE).click().perform();
+
+            wait.until(visibilityOfElementLocated(id("calendar")));
+        }
+
+        return result;
+    }
+
+    private void loopFilterSubmit(String loopName) {
+        final Select loop = new Select(webDriver.findElement(id("loop")));
+        loop.selectByVisibleText(loopName);
+
+        wait.until(elementToBeClickable(id("filter")));
+
+        WebElement filterButton = webDriver.findElement(id("filter"));
+        Actions actions = new Actions(webDriver);
+        actions.moveToElement(filterButton).click().perform();
+    }
+
+    @Override
+    public void close() {
+        webDriver.quit();
+    }
+
+    private Map<Integer, Set<LocalDate>> getAvailableDateCandidates(Configuration params, WebElement row) {
         Map<Integer, Set<LocalDate>> candidates = new TreeMap<>();
 
         params.getDaysOfWeek().forEach(day ->  {
@@ -101,7 +108,7 @@ public class SiteWebDriver {
                     filter(e -> e.getAttribute("class").contains(" a")).
                     filter(e -> {
                         LocalDate date = getAvailableDateFromElement(e);
-                        LocalDate start = params.getStart();
+                        LocalDate start = params.getSearchStart();
                         return date.isAfter(start) || date.isEqual(start);}).
                     forEach(e -> {
                             LocalDate date = getAvailableDateFromElement(e);
@@ -148,11 +155,12 @@ public class SiteWebDriver {
     }
 
     /**
+     * Transform search stop date into site representation to make stop search.
      *
      * @param end date e.g. 2018-03-10
      * @return e.g. "Mar 2018"
      */
-    private String getEndDateCondition(LocalDate end) {
+    private String getSearchStopCondition(LocalDate end) {
         String monthInLowerCase = end.getMonth().toString().substring(0, 3).toLowerCase();
         String month = monthInLowerCase.substring(0, 1).toUpperCase() + monthInLowerCase.substring(1);
         return month + " " + end.getYear();

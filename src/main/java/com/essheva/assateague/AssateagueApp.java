@@ -18,18 +18,21 @@ import java.util.concurrent.TimeUnit;
  *
  * Created by Sheva on 3/7/2018.
  */
-public class AvailableSitesFinder {
+public class AssateagueApp {
 
     private static final String resourceDirPath = "src/main/resources";
-    private static Properties props;
+    private static Properties appConfig;
+    private static Properties mailConfig;
 
     static {
         try {
-            props = new Properties();
-            props.load(getReader(resourceDirPath + "/app.properties"));
-            props.load(getReader(resourceDirPath + "/user.secret"));
-            if (!props.containsKey("mail.smtp.host") || !props.containsKey("mail.imap.host") || !props.containsKey("mail.pop3.host")) {
-                props.load(getReader(resourceDirPath + "/mail_default.properties"));
+            appConfig = new Properties();
+            appConfig.load(getReader(resourceDirPath + "/app.properties"));
+
+            mailConfig = new Properties();
+            mailConfig.load(getReader(resourceDirPath + "/user.secret"));
+            if (!mailConfig.containsKey("mail.smtp.host") || !mailConfig.containsKey("mail.imap.host") || !mailConfig.containsKey("mail.pop3.host")) {
+                mailConfig.load(getReader(resourceDirPath + "/mail_default.properties"));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -37,26 +40,27 @@ public class AvailableSitesFinder {
     }
 
     private Set<Site> availableSites = new ConcurrentSkipListSet<>();
-    private final SearchParams params;
+    private final Configuration configuration;
     private final String driverPath;
 
-    private AvailableSitesFinder(SearchParams params) {
-        this.params = params;
+    private AssateagueApp(Properties props) {
+        this.configuration = new Configuration(props);
         this.driverPath = getWebDriverFolderPathByOS();
     }
 
     private void retrieveAvailableDatesAndAdd(String loopName) {
-        SiteWebDriver driver = new SiteWebDriver(driverPath);
-        Set<Site> sitesFound = driver.getAvailableSites(loopName, params);
-        availableSites.addAll(sitesFound);
+        try (final SiteWebDriver driver = new SiteWebDriver(driverPath)){
+            Set<Site> sitesFound = driver.getAvailableSites(loopName, configuration);
+            availableSites.addAll(sitesFound);
+        }
     }
 
     private void sendEmailNotification() throws MessagingException {
-        if (availableSites.isEmpty() && "false".equalsIgnoreCase(props.getProperty("mail.send.if.not.found"))) {
+        if (availableSites.isEmpty() && configuration.isSendMailIfNotFound()) {
             System.out.println("Nothing to send. No available sites found.");
             return;
         }
-        new SiteAvailabilityMailer(props, availableSites).sendEmail();
+        new SiteAvailabilityMailer(mailConfig, availableSites).sendEmail();
     }
 
     private void printSiteInfo() {
@@ -96,10 +100,9 @@ public class AvailableSitesFinder {
             try {
                 System.out.println("Launch of scheduler done on " + LocalDateTime.now());
 
-                SearchParams params = new SearchParams(props);
-                AvailableSitesFinder checker = new AvailableSitesFinder(params);
+                AssateagueApp checker = new AssateagueApp(appConfig);
 
-                new ArrayList<>(params.getCampGroups()).parallelStream().forEach(group -> {
+                new ArrayList<>(checker.configuration.getCampGroups()).parallelStream().forEach(group -> {
                     try {
                         checker.retrieveAvailableDatesAndAdd(group);
                         scheduler.awaitTermination(5L, TimeUnit.SECONDS);
@@ -112,7 +115,7 @@ public class AvailableSitesFinder {
 
                 checker.printSiteInfo();
 
-                if ("true".equals(props.getProperty("mail.send"))) {
+                if (checker.configuration.isSendMail()) {
                     System.out.println("Send email notification action requested.");
                     checker.sendEmailNotification();
                 }
