@@ -13,7 +13,7 @@ search.campgroup.names=Oceanside Group Sites; Oceanside Loop 1; Oceanside Loop 2
 ```
 2. Desired days of week to stay stored in **search.days.of.week** property, separated by semicolon. Possible optons: *MON, TUE, WED, THU, FRI, SAT, SUN*.
 ```
-search.days.of.week=FRI; SAT; SUN
+search.days.of.week=FRI;SAT;SUN
 ```
 3. Min length of stay (in days)
 ```
@@ -53,8 +53,11 @@ After successfully configuring [app.properties](https://github.com/sheva/assatea
 
 * Run using maven:
 ```
-mvn compile exec:java
+$ mvn compile exec:java
 ```
 
+And email with results will looks like:
+
+![email body](assateague.png "Assateague results")
 
 That's it. I hope you will find this app quite useful for planning vacation at Assateague Seashore, MD. ;)
