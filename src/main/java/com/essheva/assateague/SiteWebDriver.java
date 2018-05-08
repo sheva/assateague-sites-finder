@@ -10,9 +10,10 @@ import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,8 +42,7 @@ public class SiteWebDriver implements AutoCloseable {
         options.addArguments("window-size=1500,1280");
 
         webDriver = new ChromeDriver(options);
-        webDriver.get("https://www.recreation.gov/camping/Assateague-Island-National-Seashore-Campground/r/campsiteCalendar.do" +
-                "?page=calendar&search=site&contractCode=NRSO&parkId=70989");
+        webDriver.get("https://www.recreation.gov/camping/Assateague-Island-National-Seashore-Campground/r/campsiteCalendar.do?page=calendar&search=site&contractCode=NRSO&parkId=70989");
 
         wait = new WebDriverWait(webDriver, 60);
     }
@@ -58,24 +58,42 @@ public class SiteWebDriver implements AutoCloseable {
         String stopCondition = getSearchStopCondition(conf.getSearchStop());
         final Set<Site> result = new TreeSet<>();
         while (!stopCondition.equals(webDriver.findElement(id("calendar")).findElement(cssSelector("td[class='weeknav month']>span")).getText())) {
-            WebElement resultTable = webDriver.findElement(id("calendar"));
-            resultTable.findElements(cssSelector("tbody>tr:not([class*='separator'])")).forEach(rowE ->
-            {
-                final WebElement siteE = rowE.findElement(cssSelector("div[class='siteListLabel']")).findElement(tagName("a"));
 
-                getAvailableDateCandidates(rowE).values().stream().
-                        map(d -> getConsequentDatesRange(d, conf.getMinLength())).
-                        filter(dates -> !dates.isEmpty()).
-                        forEach((dates) -> {
-                                final Site site = getByNameOrNew(result, siteE.getText(), loopName);
-                                site.setSiteLink(siteE.getAttribute("href"));
-                                site.addAvailableDates(dates);
-                                result.add(site);
-                        });
-            });
+            boolean hasNext;
+            int pageCounter = 0;
+            do {
+                WebElement resultTable = webDriver.findElement(id("calendar"));
+                resultTable.findElements(cssSelector("tbody>tr:not([class*='separator'])")).forEach(rowE ->
+                {
+                    final WebElement siteE = rowE.findElement(cssSelector("div[class='siteListLabel']")).findElement(tagName("a"));
+
+                    Set<LocalDate> availableDates = getConsequentDatesRange(getAvailableDateCandidates(rowE), conf.getMinLength());
+                    if (!availableDates.isEmpty()) {
+                        final Site site = getByNameOrNew(result, siteE.getText(), loopName);
+                        site.setSiteLink(siteE.getAttribute("href"));
+                        site.addAvailableDates(availableDates);
+                        result.add(site);
+                    }
+                });
+
+                WebElement nextLinkE = webDriver.findElement(cssSelector("tfoot>tr>td>span[class='pagenav']>a[id^='resultNext_']"));
+
+                hasNext = nextLinkE.getAttribute("href") != null;
+                if (hasNext) {
+                    click(nextLinkE);
+                    wait.until(visibilityOfElementLocated(id("calendar")));
+                    pageCounter++;
+                }
+            } while (hasNext);
+
+            while(pageCounter-- > 0) {
+                WebElement prevLinkE = webDriver.findElement(cssSelector("tfoot>tr>td>span[class='pagenav']>a[id^='resultPrevious_']"));
+                wait.until(visibilityOfElementLocated(id("calendar")));
+                click(prevLinkE);
+            }
 
             WebElement nextWeekE = webDriver.findElement(id("nextWeek"));
-            new Actions(webDriver).moveToElement(nextWeekE).click().perform();
+            click(nextWeekE);
 
             wait.until(visibilityOfElementLocated(id("calendar")));
         }
@@ -90,8 +108,7 @@ public class SiteWebDriver implements AutoCloseable {
         wait.until(elementToBeClickable(id("filter")));
 
         WebElement buttonE = webDriver.findElement(id("filter"));
-        Actions actions = new Actions(webDriver);
-        actions.moveToElement(buttonE).click().perform();
+        click(buttonE);
     }
 
     @Override
@@ -99,32 +116,26 @@ public class SiteWebDriver implements AutoCloseable {
         webDriver.quit();
     }
 
-    private Map<Integer, Set<LocalDate>> getAvailableDateCandidates(WebElement row) {
-        final Map<Integer, Set<LocalDate>> candidates = new TreeMap<>();
-
-        conf.getDaysOfWeek().forEach(day ->  {
-            final AtomicInteger group = new AtomicInteger(0);
-
-            row.findElements(xpath(DayOfWeek.getTdSelector(day))).stream().
-                    filter(e -> e.getAttribute("class").contains(" a")).
-                    filter(e -> {
-                        LocalDate date = getAvailableDateFromElement(e);
-                        LocalDate start = conf.getSearchStart();
-                        return date.isAfter(start) || date.isEqual(start);}).
-                    forEach(e -> {
-                            LocalDate date = getAvailableDateFromElement(e);
-                            int groupId = group.getAndAdd(1);
-                            if (candidates.containsKey(groupId)) {
-                                candidates.get(groupId).add(date);
-                            } else {
-                                candidates.put(groupId, new TreeSet<LocalDate>() {{ add(date); }});
-                            }
-                    });
-        });
+    private Set<LocalDate> getAvailableDateCandidates(WebElement row) {
+        Set<LocalDate> candidates = new TreeSet<>();
+        row.findElements(cssSelector("td")).stream().
+                filter(e -> e.getAttribute("class").contains(" a")).
+                filter(e -> {
+                    LocalDate date = getAvailableDateFromElement(e);
+                    LocalDate start = conf.getSearchStart();
+                    LocalDate stop = conf.getSearchStop();
+                    boolean isInRange = (date.isAfter(start) && date.isBefore(stop)) || date.isEqual(start) || date.isEqual(stop);
+                    boolean isDesiredDayOfWeek = conf.isDesiredDayOfWeek(date);
+                    return isInRange && isDesiredDayOfWeek;
+                }).
+                forEach(e -> {
+                    LocalDate date = getAvailableDateFromElement(e);
+                    candidates.add(date);
+                });
         return candidates;
     }
 
-    private static Set<LocalDate> getConsequentDatesRange(Set<LocalDate> input, int minLength) {
+    private static Set<LocalDate>  getConsequentDatesRange(Set<LocalDate> input, int minLength) {
         Set<LocalDate> result = new TreeSet<>();
         if (input.size() < minLength) {
             return result;
@@ -132,24 +143,24 @@ public class SiteWebDriver implements AutoCloseable {
 
         int count = 0;
         LocalDate prev = null;
-        Set<LocalDate> group = new HashSet<>();
+        Set<LocalDate> datesOfGroup = new TreeSet<>();
         for (final LocalDate cur : input) {
             if (prev == null || prev.plus(1, ChronoUnit.DAYS).equals(cur)) {
                 count++;
             } else {
                 if (count >= minLength) {
-                    result.addAll(group);
+                    result.addAll(datesOfGroup);
                 }
                 count = 1;
-                group.clear();
+                datesOfGroup.clear();
             }
 
-            group.add(cur);
+            datesOfGroup.add(cur);
             prev = cur;
         }
 
-        if (count >= minLength && !group.isEmpty()) {
-            result.addAll(group);
+        if (count >= minLength && !datesOfGroup.isEmpty()) {
+            result.addAll(datesOfGroup);
         }
 
         return result;
@@ -162,7 +173,8 @@ public class SiteWebDriver implements AutoCloseable {
      * @return e.g. "Mar 2018"
      */
     private String getSearchStopCondition(LocalDate end) {
-        String monthInLowerCase = end.getMonth().toString().substring(0, 3).toLowerCase();
+        Month endSearchMonth = (end.getDayOfMonth() < 14) ? end.getMonth() : end.plusMonths(1).getMonth();
+        String monthInLowerCase = endSearchMonth.toString().substring(0, 3).toLowerCase();
         String month = monthInLowerCase.substring(0, 1).toUpperCase() + monthInLowerCase.substring(1);
         return month + " " + end.getYear();
     }
@@ -179,5 +191,9 @@ public class SiteWebDriver implements AutoCloseable {
     private Site getByNameOrNew(Set<Site> availableSites, String siteName, String loopName) {
         return availableSites.parallelStream().filter(s ->
                 s.getSiteName().equals(siteName)).findFirst().orElse(new Site(siteName, loopName));
+    }
+
+    private void click(WebElement element) {
+        new Actions(webDriver).moveToElement(element).click().perform();
     }
 }

@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Properties;
@@ -156,5 +157,9 @@ public class Configuration {
 
     private static FileReader getReader(String resource) throws FileNotFoundException {
         return new FileReader(Paths.get(resource).toFile());
+    }
+
+    public boolean isDesiredDayOfWeek(LocalDate date) {
+        return daysOfWeek.contains(date.getDayOfWeek());
     }
 }

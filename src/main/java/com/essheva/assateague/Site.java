@@ -48,14 +48,6 @@ public class Site implements Cloneable, Comparable<Site> {
         return availableDates;
     }
 
-    void setAvailableDates(Set<LocalDate> availableDates) {
-        this.availableDates = availableDates;
-    }
-
-    void addAvailableDate(LocalDate date) {
-        availableDates.add(date);
-    }
-
     void addAvailableDates(Set<LocalDate> dates) {
         availableDates.addAll(dates);
     }
