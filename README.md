@@ -11,9 +11,9 @@ Search parameters are set in [app.properties](https://github.com/sheva/assateagu
 ```
 search.campgroup.names=Oceanside Group Sites; Oceanside Loop 1; Oceanside Loop 2
 ```
-2. Desired days of week to stay stored in **search.days.of.week** property, separated by semicolon. Possible optons: *MON, TUE, WED, THU, FRI, SAT, SUN*.
+2. Desired days of week to stay stored in **search.days.of.week** property, separated by semicolon. Possible options: *[SUNDAY; MONDAY; TUESDAY; WEDNESDAY; THURSDAY; FRIDAY; SATURDAY]*.
 ```
-search.days.of.week=FRI;SAT;SUN
+search.days.of.week=FRIDAY; SATURDAY; SUNDAY
 ```
 3. Min length of stay (in days)
 ```
