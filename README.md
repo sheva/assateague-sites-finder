@@ -56,7 +56,7 @@ After successfully configuring [app.properties](https://github.com/sheva/assatea
 $ mvn compile exec:java
 ```
 
-And email with results will looks like:
+And email with results will look like:
 
 ![email body](assateague.png "Assateague results")
 
