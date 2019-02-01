@@ -17,7 +17,7 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 public class Configuration {
 
     private static final String resourceDirPath = "src/main/resources";
-    private static final String DATE_FORMAT = "MM/dd/yyyy";
+    static final String DATE_FORMAT = "MM/dd/yyyy";
     private static final char PROPERTY_VALUES_SEPARATOR = ';';
 
     private static Configuration instance;
@@ -58,7 +58,7 @@ public class Configuration {
 
         searchStart = LocalDate.parse(getValue(props, "start.date"), ofPattern(DATE_FORMAT));
         searchStop = LocalDate.parse(getValue(props,"stop.date"), ofPattern(DATE_FORMAT));
-        minLength = Integer.valueOf(getValue(props,"length.of.stay"));
+        minLength = Integer.valueOf(getValue(props,"min.length.of.stay"));
 
         sendMail = Boolean.valueOf(props.getProperty("mail.send"));
         sendMailIfNotFound = Boolean.valueOf(props.getProperty("mail.send.if.not.found"));

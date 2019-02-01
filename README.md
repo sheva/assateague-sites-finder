@@ -17,7 +17,7 @@ days.of.week=FRIDAY;SATURDAY;SUNDAY
 ```
 3. Min length of stay (in days)
 ```
-length.of.stay=2
+min.length.of.stay=2
 ```
 4. Start of period to search in (format *MM/dd/yyyy*)
 ```
