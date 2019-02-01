@@ -27,11 +27,11 @@ start.date=02/02/2019
 ```
 stop.date=03/01/2019
 ```
-6. Determine whether to send notification by email or not when available sites has been found.
+6. Determine whether to send notification by email or not when available sites have been found
 ```
 mail.send=true
 ```
-7. Send email even if no available sites found.
+7. Send email even if no available sites found
 ```
 mail.send.if.not.found=false
 ```
