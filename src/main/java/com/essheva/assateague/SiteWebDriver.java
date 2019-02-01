@@ -58,21 +58,22 @@ public class SiteWebDriver implements AutoCloseable {
 
         while(!checkStopCondition()) {
 
-            for(;;) {
+            boolean listedAllSitesForPeriod = false;
+            while(!listedAllSitesForPeriod) {
                 try {
                     WebElement loadMoreBtn = webDriver.findElement(cssSelector("button.load-more-btn"));
                     scrollToElement(loadMoreBtn);
                     loadMoreBtn.click();
                     wait.until(elementToBeClickable(id("availability-table")));
                 } catch (NoSuchElementException ignored) {
-                    break;
+                    listedAllSitesForPeriod = true;
                 }
             }
 
             scrollToElement(webDriver.findElement(xpath(
                     String.format("//table[@id='availability-table']//tbody//td[text()='%s']", loopName))));
 
-            final String monthYear = webDriver.findElement(cssSelector("div.rec-month-availability-date-title")).getText();
+            final String monthYearPeriod = webDriver.findElement(cssSelector("div.rec-month-availability-date-title")).getText();
 
             webDriver.findElement(id("availability-table")).findElements(cssSelector("tbody>tr")).stream().
                     filter(rowE ->
@@ -84,21 +85,23 @@ public class SiteWebDriver implements AutoCloseable {
                         }
                     }).
                     forEach(rowE ->
-                            {
-                                final WebElement siteE = rowE.findElement(cssSelector("th button"));
+                    {
+                        final WebElement siteE = rowE.findElement(cssSelector("th button"));
 
-                                Set<LocalDate> availableDates = getConsequentDatesRange(
-                                        getAvailableDateCandidates(rowE, monthYear), conf.getMinLength());
-                                if (!availableDates.isEmpty()) {
-                                    final Site site = getByNameOrNew(result, siteE.getText(), loopName);
+                        Set<LocalDate> availableDates = getConsequentDatesRange(
+                                getAvailableDateCandidates(rowE, monthYearPeriod), conf.getMinLength());
+                        if (!availableDates.isEmpty()) {
+                            final Site site = findSiteByNameOrNew(result, siteE.getText(), loopName);
 //                            site.setSiteLink(siteE.getAttribute("href"));
-                                    site.addAvailableDates(availableDates);
-                                    result.add(site);
-                                }
-                            }
-                    );
+                            site.addAvailableDates(availableDates);
+                            result.add(site);
+                        }
+                    });
             scrollToElement(webDriver.findElement(cssSelector("div.rec-day-picker")));
-            webDriver.findElement(xpath("//div[@class='rec-day-picker'] //button[last()]")).click();
+            try {
+                webDriver.findElement(xpath("//div[@class='rec-day-picker'] //button[last()]")).click();
+            } catch (NoSuchElementException ignored) { // nothing to view more
+            }
         }
         return result;
     }
@@ -108,13 +111,13 @@ public class SiteWebDriver implements AutoCloseable {
         webDriver.quit();
     }
 
-    private Set<LocalDate> getAvailableDateCandidates(WebElement row, String monthYear) {
+    private Set<LocalDate> getAvailableDateCandidates(WebElement row, String monthYearPeriod) {
         Set<LocalDate> candidates = new TreeSet<>();
         row.findElements(cssSelector("td")).stream().
                 filter(e -> e.getAttribute("class").equals("available")
                         || e.getAttribute("class").equals("walk-up")).
                 filter(e -> {
-                    LocalDate date = getAvailableDate(e, monthYear);
+                    LocalDate date = getAvailableDate(e, monthYearPeriod);
                     LocalDate start = conf.getSearchStart();
                     LocalDate stop = conf.getSearchStop();
                     boolean isInRange = (date.isAfter(start) && date.isBefore(stop))
@@ -123,7 +126,7 @@ public class SiteWebDriver implements AutoCloseable {
                     return isInRange && isDesiredDayOfWeek;
                 }).
                 forEach(e -> {
-                    LocalDate date = getAvailableDate(e, monthYear);
+                    LocalDate date = getAvailableDate(e, monthYearPeriod);
                     candidates.add(date);
                 });
         return candidates;
@@ -161,25 +164,26 @@ public class SiteWebDriver implements AutoCloseable {
     }
 
     private boolean checkStopCondition() {
-        final String monthYear = webDriver.findElement(cssSelector("div.rec-month-availability-date-title")).getText();
-        LocalDate date = LocalDate.parse(defineDateForDay(monthYear, findLastDate()), dateFormatter);
-        return conf.getSearchStop().isBefore(date) || conf.getSearchStop().isEqual(date);
+        final String monthYearPeriod = webDriver.findElement(cssSelector("div.rec-month-availability-date-title")).getText();
+        String lastInTableDate = createDate(monthYearPeriod, findDayInLastPosition());
+        LocalDate lastDateInPeriod = LocalDate.parse(lastInTableDate, dateFormatter);
+        return conf.getSearchStop().isBefore(lastDateInPeriod) || conf.getSearchStop().isEqual(lastDateInPeriod);
     }
 
-    private String defineDateForDay(String monthYear, String day) {
+    private String createDate(String monthYearPeriod, String day) {
         String patternStr = ("([A-Z]{3})(\\s+/\\s+([A-Z]{3}))?\\s+(\\d{4})");
-        Matcher matcher = Pattern.compile(patternStr).matcher(monthYear);
+        Matcher matcher = Pattern.compile(patternStr).matcher(monthYearPeriod);
         if (matcher.find()) {
             String month = matcher.group(1);
             if (matcher.group(2) != null) {
-                String firstDay = findDayFromTableHeader(3);
+                String firstDay = findDayByPosition(3); // skip "site name" & "loop name"
                 if (Integer.valueOf(firstDay) > Integer.valueOf(day)) {
                     month = matcher.group(3);
                 } else {
                     month = matcher.group(1);
                 }
             }
-            month = month.substring(0, 1) + month.substring(1).toLowerCase();
+            month = month.substring(0, 1) + month.substring(1).toLowerCase(); // translate to "MMM" format
             String year = matcher.group(4);
             return month + "/" + day + "/" + year;
         }  else {
@@ -187,19 +191,24 @@ public class SiteWebDriver implements AutoCloseable {
         }
     }
 
-    private LocalDate getAvailableDate(WebElement e, String monthYear) {
-        int cellIndex = Integer.valueOf(e.getAttribute("cellIndex"));
-        String dateStr = defineDateForDay(monthYear, findDayFromTableHeader(cellIndex + 1));
-        return LocalDate.parse(dateStr, dateFormatter);
+    private LocalDate getAvailableDate(WebElement e, String monthYearPeriod) {
+        int position = Integer.valueOf(e.getAttribute("cellIndex"));
+        String availableDate = createDate(monthYearPeriod, findDayByPosition(position + 1));
+        return LocalDate.parse(availableDate, dateFormatter);
     }
 
-    private String findDayFromTableHeader(int index) {
-        return webDriver.findElement(cssSelector(String.format(
-                "table[id='availability-table'] thead th:nth-of-type(%s) span[class='date']", index))).
+    private String findDayByPosition(int position) {
+        return webDriver.findElement(cssSelector(
+                String.format("table[id='availability-table'] thead th:nth-of-type(%s) span[class='date']", position))).
                 getText();
     }
 
-    private Site getByNameOrNew(Set<Site> availableSites, String siteName, String loopName) {
+    private String findDayInLastPosition() {
+        return webDriver.findElement(
+                xpath("//table[@id='availability-table']//thead//th[last()]//span[@class='date']")).getText();
+    }
+
+    private Site findSiteByNameOrNew(Set<Site> availableSites, String siteName, String loopName) {
         return availableSites.parallelStream().filter(s ->
                 s.getSiteName().equals(siteName)).findFirst().orElse(new Site(siteName, loopName));
     }
@@ -212,9 +221,5 @@ public class SiteWebDriver implements AutoCloseable {
     }
     private void blurToElement(WebElement e) {
         ((JavascriptExecutor)webDriver).executeScript("arguments[0].blur()", e);
-    }
-    private String findLastDate() {
-        return webDriver.findElement(
-                xpath("//table[@id='availability-table']//thead//th[last()]//span[@class='date']")).getText();
     }
 }
