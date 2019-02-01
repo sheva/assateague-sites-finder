@@ -7,25 +7,25 @@ I trace available sites by desired criteria. If free spot found, email with site
 
 Search parameters are set in [app.properties](https://github.com/sheva/assateague-sites-finder/blob/master/src/main/resources/app.properties) file.
 
-1. Campground groups are represented in **search.campgroup.names** property, seprated by semicolon and could be *Bayside Loop A; Bayside Loop B; Bayside Loop C; Equestrian Non-Electric; Oceanside Group Sites; Oceanside Loop 1; Oceanside Loop 2; Oceanside Walk In 42-44, 51-82; Oceanside Walk In 83-104; Oceanside Walk-In 45-50*.
+1. Campground groups are represented in **campgroup.names** property, seprated by semicolon and could be *Bayside Loop A; Bayside Loop B; Bayside Loop C; Equestrian Non-Electric; Oceanside Group Sites; Oceanside Loop 1; Oceanside Loop 2; Oceanside Walk In 42-44, 51-82; Oceanside Walk In 83-104; Oceanside Walk-In 45-50*.
 ```
-search.campgroup.names=Oceanside Group Sites; Oceanside Loop 1; Oceanside Loop 2
+campgroup.names=Oceanside Group Sites; Oceanside Loop 1; Oceanside Loop 2
 ```
-2. Desired days of week to stay stored in **search.days.of.week** property, separated by semicolon. Possible optons: *MON, TUE, WED, THU, FRI, SAT, SUN*.
+2. Desired days of week to stay stored in **days.of.week** property, separated by semicolon.
 ```
-search.days.of.week=FRI;SAT;SUN
+days.of.week=FRIDAY;SATURDAY;SUNDAY
 ```
 3. Min length of stay (in days)
 ```
-search.length.of.stay=2
+length.of.stay=2
 ```
-4. Start of period to search in (format *yyyy-MM-dd*)
+4. Start of period to search in (format *MM/dd/yyyy*)
 ```
-search.start.date=2018-06-01
+start.date=02/02/2019
 ```
-5. End of period to search in (format *yyyy-MM-dd*)
+5. End of period to search in (format *MM/dd/yyyy*)
 ```
-search.stop.date=2018-09-01
+stop.date=03/01/2019
 ```
 6. Determine whether to send notification by email or not when available sites has been found.
 ```

@@ -17,7 +17,7 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 public class Configuration {
 
     private static final String resourceDirPath = "src/main/resources";
-    private static final String DATE_FORMAT = "yyyy-MM-dd";
+    private static final String DATE_FORMAT = "MM/dd/yyyy";
     private static final char PROPERTY_VALUES_SEPARATOR = ';';
 
     private static Configuration instance;
@@ -46,19 +46,19 @@ public class Configuration {
 
         driverPath = getWebDriverFolderPathByOS();
 
-        campGroups = Arrays.stream(spiltValues(getValue(props, "search.campgroup.names"))).
+        campGroups = Arrays.stream(spiltValues(getValue(props, "campgroup.names"))).
                 distinct().
                 collect(Collectors.toSet());
 
-        daysOfWeek = Arrays.stream(spiltValues(getValue(props, "search.days.of.week")))
+        daysOfWeek = Arrays.stream(spiltValues(getValue(props, "days.of.week")))
                 .distinct()
                 .map(String::toUpperCase)
                 .map(DayOfWeek::valueOf)
                 .collect(Collectors.toSet());
 
-        searchStart = LocalDate.parse(getValue(props,"search.start.date"), ofPattern(DATE_FORMAT));
-        searchStop = LocalDate.parse(getValue(props,"search.stop.date"), ofPattern(DATE_FORMAT));
-        minLength = Integer.valueOf(getValue(props,"search.length.of.stay"));
+        searchStart = LocalDate.parse(getValue(props, "start.date"), ofPattern(DATE_FORMAT));
+        searchStop = LocalDate.parse(getValue(props,"stop.date"), ofPattern(DATE_FORMAT));
+        minLength = Integer.valueOf(getValue(props,"length.of.stay"));
 
         sendMail = Boolean.valueOf(props.getProperty("mail.send"));
         sendMailIfNotFound = Boolean.valueOf(props.getProperty("mail.send.if.not.found"));
